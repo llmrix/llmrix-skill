@@ -3,7 +3,7 @@ import os
 import subprocess
 from contextlib import contextmanager
 from typing import Any, Generator, List, Optional
-from .exceptions import GitOperationError
+from llmrix.skill.core.exceptions import GitOperationError
 
 logger = logging.getLogger(__name__)
 

@@ -1,6 +1,6 @@
 from typing import Any, List, Optional
-from ..base import BaseStorage
-from ..schema import Skill, SkillVersion
+from llmrix.skill.storage.base import BaseStorage
+from llmrix.skill.models.schema import Skill, SkillVersion
 
 class MySQLStorage(BaseStorage):
     def __init__(self, connection_factory):

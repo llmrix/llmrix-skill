@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from .git import GitRepository
+from llmrix.skill.git.repository import GitRepository
 
 logger = logging.getLogger(__name__)
 

@@ -1,25 +1,66 @@
-from .manager import GitSkillManager
-from .repository import GitRepository
-from .base import BaseStorage
-from .schema import Skill, SkillVersion
-from .exceptions import GitSkillError, SkillNotFoundError, PermissionDeniedError
-from .syncer import SkillSyncer, RemoteSource, SyncResult
-from .publisher import SkillPublisher
-from .config import SkillConfig
+"""
+llmrix.skill — Git-backed Skill management library.
+
+Package layout:
+  core/      Cross-cutting concerns (config, exceptions, utils)
+  models/    Domain models and data schemas
+  git/       Low-level Git repository driver
+  storage/   Abstract storage interface + concrete adapters
+  services/  High-level orchestration (sync, publish, manage)
+"""
+# --- Core ---
+from .core.config import SkillConfig
+from .core.exceptions import (
+    GitSkillError,
+    SkillNotFoundError,
+    VersionNotFoundError,
+    PermissionDeniedError,
+    ValidationError,
+    GitOperationError,
+)
+from .core.utils import build_file_tree
+
+# --- Models ---
+from .models.schema import Skill, SkillVersion
+from .models.metadata import MetadataParser
+
+# --- Git ---
+from .git.repository import GitRepository
+
+# --- Storage ---
+from .storage.base import BaseStorage
+from .storage.mysql import MySQLStorage
+
+# --- Services ---
+from .services.manager import GitSkillManager
+from .services.publisher import SkillPublisher
+from .services.syncer import SkillSyncer, RemoteSource, SyncResult
 
 __version__ = "0.2.0"
+
 __all__ = [
-    "GitSkillManager",
-    "GitRepository",
-    "BaseStorage",
-    "Skill",
-    "SkillVersion",
+    # Core
+    "SkillConfig",
     "GitSkillError",
     "SkillNotFoundError",
+    "VersionNotFoundError",
     "PermissionDeniedError",
+    "ValidationError",
+    "GitOperationError",
+    "build_file_tree",
+    # Models
+    "Skill",
+    "SkillVersion",
+    "MetadataParser",
+    # Git
+    "GitRepository",
+    # Storage
+    "BaseStorage",
+    "MySQLStorage",
+    # Services
+    "GitSkillManager",
+    "SkillPublisher",
     "SkillSyncer",
     "RemoteSource",
     "SyncResult",
-    "SkillPublisher",
-    "SkillConfig"
 ]

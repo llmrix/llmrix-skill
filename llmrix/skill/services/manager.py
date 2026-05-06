@@ -1,14 +1,14 @@
 import os
 import logging
 from typing import Any, Optional, List
-from .repository import GitRepository
-from .base import BaseStorage
-from .metadata import MetadataParser
-from .syncer import SkillSyncer
-from .publisher import SkillPublisher
-from .config import SkillConfig
-from .schema import Skill, SkillVersion
-from .exceptions import GitSkillError
+from llmrix.skill.git.repository import GitRepository
+from llmrix.skill.storage.base import BaseStorage
+from llmrix.skill.models.metadata import MetadataParser
+from llmrix.skill.services.syncer import SkillSyncer
+from llmrix.skill.services.publisher import SkillPublisher
+from llmrix.skill.core.config import SkillConfig
+from llmrix.skill.models.schema import Skill, SkillVersion
+from llmrix.skill.core.exceptions import GitSkillError
 
 logger = logging.getLogger(__name__)
 

@@ -1,7 +1,7 @@
 import yaml
 import re
 from typing import Any, Dict, Optional
-from .exceptions import ValidationError
+from llmrix.skill.core.exceptions import ValidationError
 
 class MetadataParser:
     """Parses skill files and validates codes."""
