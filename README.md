@@ -61,9 +61,44 @@ skill = manager.publish(
 )
 ```
 
+## API Reference
+
+### `GitSkillManager`
+
+The primary class for managing skills.
+
+#### `__init__(repo_url: str, workspace: str = None, branch: str = "main", storage: BaseStorage = None)`
+Initializes the manager.
+- `repo_url`: Remote Git repository URL (SSH or HTTPS with credentials).
+- `workspace`: Local directory for the Git repository. Defaults to `~/llmrix/skills/remote`.
+- `branch`: Target Git branch. Defaults to `main`.
+- `storage`: A database adapter instance (e.g., `MySQLStorage`). Required for publishing/rollback.
+
+#### `sync() -> str`
+Worker Mode: Clones or pulls the latest skills from the remote repository.
+- **Returns**: Absolute path to the `skills/` directory on local disk.
+
+#### `publish(code: str, source_dir: str, user_id: Any, name: str = None, description: str = None, category: str = None, message: str = None) -> Skill`
+Management Mode: Deploys a new version of a skill.
+- `code`: Unique identifier for the skill (e.g., "translator").
+- `source_dir`: Local directory containing the skill files (must include `SKILL.md`).
+- `user_id`: ID of the user performing the action (for permission checks and audit).
+- `name/description/category`: Optional metadata. If provided, they override the values in `SKILL.md`.
+- `message`: Commit message for the version history.
+
+#### `rollback(code: str, target_version: int, user_id: Any, message: str = None) -> Skill`
+Management Mode: Reverts a skill to a specific previous version.
+- `target_version`: The version number to roll back to.
+
+#### `get_history(code: str) -> List[SkillVersion]`
+Retrieves the full release history for a skill.
+
+#### `get_interim_path(uid: Any) -> str` (Static)
+Returns the recommended temporary directory for user uploads: `~/llmrix/skills/interim/{uid}`.
+
 ## Database Schema
 
-You can find the MySQL schema in `database/schema.sql`.
+You can find the MySQL schema in `database/schema.sql`. The library currently supports the `MySQLStorage` adapter out of the box.
 
 ## License
 

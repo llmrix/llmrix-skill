@@ -61,9 +61,44 @@ skill = manager.publish(
 )
 ```
 
+## API 레퍼런스
+
+### `GitSkillManager`
+
+스킬 관리를 위한 핵심 클래스입니다.
+
+#### `__init__(repo_url: str, workspace: str = None, branch: str = "main", storage: BaseStorage = None)`
+관리자를 초기화합니다.
+- `repo_url`: 원격 Git 저장소 URL (SSH 또는 자격 증명이 포함된 HTTPS).
+- `workspace`: 로컬 Git 저장소 작업 디렉토리. 기본값은 `~/llmrix/skills/remote`입니다.
+- `branch`: 대상 Git 브랜치. 기본값은 `main`입니다.
+- `storage`: 데이터베이스 어댑터 인스턴스(예: `MySQLStorage`). 게시/롤백 작업 시 필수입니다.
+
+#### `sync() -> str`
+워커 모드 (Worker Mode): 원격 저장소에서 최신 스킬을 복제하거나 가져옵니다.
+- **반환**: 로컬 디스크의 `skills/` 디렉토리에 대한 절대 경로입니다.
+
+#### `publish(code: str, source_dir: str, user_id: Any, name: str = None, description: str = None, category: str = None, message: str = None) -> Skill`
+관리 모드 (Management Mode): 스킬의 새 버전을 배포합니다.
+- `code`: 스킬의 고유 식별자(예: "translator").
+- `source_dir`: 스킬 파일이 포함된 로컬 디렉토리(`SKILL.md` 포함 필수).
+- `user_id`: 작업을 수행하는 사용자 ID(권한 확인 및 감사용).
+- `name/description/category`: 선택적 메타데이터. 제공된 경우 `SKILL.md`의 값을 덮어씁니다.
+- `message`: 버전 기록을 위한 커밋 메시지입니다.
+
+#### `rollback(code: str, target_version: int, user_id: Any, message: str = None) -> Skill`
+관리 모드 (Management Mode): 스킬을 특정 이전 버전으로 되돌립니다.
+- `target_version`: 되돌릴 버전 번호입니다.
+
+#### `get_history(code: str) -> List[SkillVersion]`
+스킬의 전체 릴리스 기록을 가져옵니다.
+
+#### `get_interim_path(uid: Any) -> str` (정적 메서드)
+사용자 업로드를 위한 권장 임시 디렉토리인 `~/llmrix/skills/interim/{uid}`를 반환합니다.
+
 ## 데이터베이스 스키마
 
-MySQL 스키마는 `database/schema.sql`에서 확인할 수 있습니다.
+MySQL 스키마는 `database/schema.sql`에서 확인할 수 있습니다. 이 라이브러리는 현재 `MySQLStorage` 어댑터를 기본적으로 지원합니다.
 
 ## 라이선스
 
