@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmrix-skill"
+version = "0.1.0"
+description = "A professional Git-based Skill management library for LLM agents."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "LLMRix Team", email = "support@llmrix.com"}
+]
+dependencies = [
+    "pyyaml>=6.0",
+    "filelock>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/llmrix/llmrix-skillhub"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["llmrix*"]
