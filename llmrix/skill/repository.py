@@ -8,7 +8,10 @@ from .exceptions import GitOperationError
 logger = logging.getLogger(__name__)
 
 class GitRepository:
-    """Handles low-level Git operations for skills."""
+    """
+    Handles low-level Git operations for skills.
+    Focuses on repository maintenance, state transitions, and file management.
+    """
     
     def __init__(self, root: str, sub_dir: str = "skills"):
         self.root = os.path.abspath(root)
@@ -16,13 +19,16 @@ class GitRepository:
         self._lock_dir = os.path.join(self.root, ".locks")
 
     def get_skill_path(self, code: str) -> str:
+        """Returns absolute path to a skill directory."""
         return os.path.join(self.root, self.sub_dir, code)
 
     def get_relative_path(self, code: str) -> str:
+        """Returns relative path to a skill from repo root."""
         return f"{self.sub_dir}/{code}"
 
     @contextmanager
     def lock(self, code: str, timeout: int = 30) -> Generator[None, None, None]:
+        """Provides a distributed file lock for a specific skill code."""
         try:
             from filelock import FileLock
             os.makedirs(self._lock_dir, exist_ok=True)
@@ -34,6 +40,7 @@ class GitRepository:
             yield
 
     def _execute(self, command: List[str]) -> str:
+        """Executes a git command and returns the output."""
         try:
             result = subprocess.run(
                 ["git"] + command,
@@ -48,29 +55,37 @@ class GitRepository:
             error_msg = (e.stdout + "\\n" + e.stderr).strip()
             raise GitOperationError(f"Git command {' '.join(command)} failed: {error_msg}") from e
 
-    def initialize(self, remote_url: Optional[str] = None, branch: str = "main"):
+    def ensure_initialized(self, remote_url: Optional[str] = None, branch: str = "main"):
+        """Ensures the repository is initialized and tracking the correct branch."""
         if not os.path.isdir(os.path.join(self.root, ".git")):
             if remote_url:
+                logger.info(f"Cloning skill repository from {remote_url} (branch: {branch})")
                 os.makedirs(os.path.dirname(self.root), exist_ok=True)
                 subprocess.run(["git", "clone", "--branch", branch, remote_url, self.root], check=True)
             else:
+                logger.info(f"Initializing local skill repository (branch: {branch})")
                 os.makedirs(self.root, exist_ok=True)
                 self._execute(["init", "-b", branch])
+        
+        # Ensure skills directory exists
         os.makedirs(os.path.join(self.root, self.sub_dir), exist_ok=True)
 
-    def sync(self, remote: str = "origin", branch: str = "main"):
+    def fetch_latest(self, remote: str = "origin", branch: str = "main"):
+        """Pulls the latest changes from the remote repository."""
         try:
             self._execute(["pull", remote, branch])
         except GitOperationError as e:
-            logger.warning(f"Sync failed, continuing locally: {e}")
+            logger.warning(f"Git pull failed, falling back to local state: {e}")
 
-    def publish(self, remote: str = "origin", branch: str = "main"):
+    def push_changes(self, remote: str = "origin", branch: str = "main"):
+        """Pushes local commits to the remote repository."""
         try:
             self._execute(["push", remote, branch])
         except GitOperationError as e:
-            logger.warning(f"Push failed: {e}")
+            logger.warning(f"Git push failed: {e}")
 
-    def commit(self, code: str, author_id: Any, message: Optional[str] = None) -> str:
+    def commit_skill(self, code: str, author_id: Any, message: Optional[str] = None) -> str:
+        """Adds and commits changes for a specific skill."""
         rel_path = self.get_relative_path(code)
         self._execute(["add", rel_path])
         
@@ -83,7 +98,8 @@ class GitRepository:
         self._execute(["commit", "-m", msg])
         return self._execute(["rev-parse", "HEAD"])
 
-    def revert(self, code: str, commit_hash: str, author_id: Any, message: Optional[str] = None) -> str:
+    def revert_to_commit(self, code: str, commit_hash: str, author_id: Any, message: Optional[str] = None) -> str:
+        """Checkouts a specific commit for a skill and commits the reversal."""
         rel_path = self.get_relative_path(code)
         self._execute(["checkout", commit_hash, "--", rel_path])
         self._execute(["add", rel_path])

@@ -1,11 +1,12 @@
 import os
 import logging
-from typing import Any, Dict, Optional, List
-from .git import GitRepository
+from typing import Any, Optional, List
+from .repository import GitRepository
 from .base import BaseStorage
 from .metadata import MetadataParser
-from .sync import SkillSyncer
+from .syncer import SkillSyncer
 from .publisher import SkillPublisher
+from .config import SkillConfig
 from .schema import Skill, SkillVersion
 from .exceptions import GitSkillError
 
@@ -13,11 +14,10 @@ logger = logging.getLogger(__name__)
 
 class GitSkillManager:
     """
-    Unified Facade for the llmrix.skill package.
+    Converged Orchestrator for SkillHub.
     
-    Provides a simple API for both:
-    - Worker Mode: Syncing skills to local disk for execution.
-    - Management Mode: Publishing/Rollbacking skills with version control.
+    Acts as a high-level facade that decouples configuration from method calls,
+    providing a clean interface for both Agent Workers and Management APIs.
     """
 
     def __init__(
@@ -27,26 +27,26 @@ class GitSkillManager:
         branch: str = "main",
         storage: Optional[BaseStorage] = None
     ):
-        # Default workspace for sync/remote caching
-        if not workspace:
-            workspace = os.path.expanduser("~/llmrix/skills/remote")
-        
-        self.repo_url = repo_url
-        self.workspace = os.path.abspath(os.path.expanduser(workspace))
-        self.branch = branch
+        # 1. Decouple Configuration
+        self.config = SkillConfig.create(repo_url, workspace, branch)
         self.storage = storage
         
-        # Internal components with clear responsibilities
-        self.git = GitRepository(root=self.workspace)
+        # 2. Initialize Internal Components
+        self.repository = GitRepository(root=self.config.workspace, sub_dir=self.config.skills_path)
         self.parser = MetadataParser()
         
-        # Read responsibility: Use workspace parent as cache root
-        self.syncer = SkillSyncer(cache_dir=os.path.dirname(self.workspace))
+        # 3. Read Responsibility (Syncing)
+        self.syncer = SkillSyncer(cache_dir=self.config.cache_root)
         
-        # Write responsibility (lazy initialization if storage is provided)
+        # 4. Write Responsibility (Publishing - Lazy)
         self._publisher = None
         if storage:
-            self._publisher = SkillPublisher(git=self.git, storage=storage, parser=self.parser)
+            self._publisher = SkillPublisher(
+                git=self.repository, 
+                storage=storage, 
+                parser=self.parser,
+                default_branch=self.config.branch
+            )
 
     @property
     def publisher(self) -> SkillPublisher:
@@ -55,29 +55,44 @@ class GitSkillManager:
         return self._publisher
 
     def sync(self) -> str:
-        """Worker Mode: Ensure local workspace is ready for use."""
-        self.git.initialize(remote_url=self.repo_url, branch=self.branch)
-        self.git.sync(branch=self.branch)
-        return self.git.get_skill_path("")
+        """
+        Worker Mode API: Synchronizes the local repository.
+        Uses the pre-configured branch and workspace.
+        """
+        self.repository.ensure_initialized(
+            remote_url=self.config.repo_url, 
+            branch=self.config.branch
+        )
+        self.repository.fetch_latest(branch=self.config.branch)
+        return self.repository.get_skill_path("")
 
     def publish(self, **kwargs) -> Skill:
-        """Management Mode: Deploy a new version of a skill."""
-        self.git.initialize(remote_url=self.repo_url, branch=self.branch)
-        return self.publisher.publish(branch=self.branch, **kwargs)
+        """
+        Management Mode API: Deploys a new version.
+        Arguments like 'branch' are optional as the manager uses defaults.
+        """
+        self.repository.ensure_initialized(
+            remote_url=self.config.repo_url, 
+            branch=self.config.branch
+        )
+        return self.publisher.publish(**kwargs)
 
     def rollback(self, **kwargs) -> Skill:
-        """Management Mode: Revert a skill to a previous version."""
-        self.git.initialize(remote_url=self.repo_url, branch=self.branch)
-        return self.publisher.rollback(branch=self.branch, **kwargs)
-
-    @staticmethod
-    def get_interim_path(uid: Any) -> str:
-        """Helper to resolve the interim upload directory for a specific user."""
-        base = os.path.expanduser(f"~/llmrix/skills/interim/{uid}")
-        return os.path.abspath(base)
+        """Management Mode API: Reverts to a previous version."""
+        self.repository.ensure_initialized(
+            remote_url=self.config.repo_url, 
+            branch=self.config.branch
+        )
+        return self.publisher.rollback(**kwargs)
 
     def get_history(self, code: str) -> List[SkillVersion]:
-        """Retrieve version history from storage."""
+        """Retrieves release history from the connected database."""
         if not self.storage:
             raise GitSkillError("Storage adapter is required for history queries.")
         return self.storage.get_history(code)
+
+    @staticmethod
+    def get_interim_path(uid: Any) -> str:
+        """Static utility to resolve a standardized interim upload path for users."""
+        base = os.path.expanduser(f"~/llmrix/skills/interim/{uid}")
+        return os.path.abspath(base)

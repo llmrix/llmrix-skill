@@ -1,12 +1,13 @@
 from .manager import GitSkillManager
-from .git import GitRepository
+from .repository import GitRepository
 from .base import BaseStorage
 from .schema import Skill, SkillVersion
 from .exceptions import GitSkillError, SkillNotFoundError, PermissionDeniedError
-from .sync import SkillSyncer, RemoteSource, SyncResult
+from .syncer import SkillSyncer, RemoteSource, SyncResult
 from .publisher import SkillPublisher
+from .config import SkillConfig
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "GitSkillManager",
     "GitRepository",
@@ -19,5 +20,6 @@ __all__ = [
     "SkillSyncer",
     "RemoteSource",
     "SyncResult",
-    "SkillPublisher"
+    "SkillPublisher",
+    "SkillConfig"
 ]
