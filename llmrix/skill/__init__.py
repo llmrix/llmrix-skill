@@ -19,6 +19,7 @@ from .core.exceptions import (
     GitOperationError,
 )
 from .core.utils import build_file_tree
+from .core.plugin import BaseSkill
 
 # --- Models ---
 from .models.schema import Skill, SkillVersion
@@ -30,6 +31,7 @@ from .git.repository import GitRepository
 # --- Storage ---
 from .storage.base import BaseStorage
 from .storage.mysql import MySQLStorage
+from .storage.sqlalchemy_store import SQLAlchemyStorage
 
 # --- Services ---
 from .services.manager import GitSkillManager
@@ -48,6 +50,7 @@ __all__ = [
     "ValidationError",
     "GitOperationError",
     "build_file_tree",
+    "BaseSkill",
     # Models
     "Skill",
     "SkillVersion",
@@ -57,6 +60,7 @@ __all__ = [
     # Storage
     "BaseStorage",
     "MySQLStorage",
+    "SQLAlchemyStorage",
     # Services
     "GitSkillManager",
     "SkillPublisher",

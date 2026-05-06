@@ -11,6 +11,7 @@ from .exceptions import (
     GitOperationError,
 )
 from .utils import build_file_tree
+from .plugin import BaseSkill
 
 __all__ = [
     "SkillConfig",
@@ -21,4 +22,5 @@ __all__ = [
     "ValidationError",
     "GitOperationError",
     "build_file_tree",
+    "BaseSkill",
 ]
