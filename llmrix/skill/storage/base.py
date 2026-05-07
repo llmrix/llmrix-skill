@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, List, Optional
+from typing import Any, List, Literal, Optional
 from llmrix.skill.models.schema import Skill, SkillVersion
+
+# Ownership check result: "free" | "own" | "conflict"
+OwnershipStatus = Literal["free", "own", "conflict"]
 
 class BaseStorage(ABC):
     """
@@ -37,3 +40,19 @@ class BaseStorage(ABC):
     def can_modify(self, code: str, user_id: Any) -> bool:
         """Check if the user has permission to modify the skill."""
         pass
+
+    def check_ownership(self, code: str, user_id: Any) -> OwnershipStatus:
+        """
+        Three-way ownership check:
+        - "free"     → skill does not exist, can be created
+        - "own"      → skill exists and belongs to user_id, can be updated
+        - "conflict" → skill exists and belongs to another user or system (user_id=0)
+        Default implementation built on get_skill + can_modify.
+        Override for more efficient single-query implementations.
+        """
+        skill = self.get_skill(code)
+        if skill is None:
+            return "free"
+        if self.can_modify(code, user_id):
+            return "own"
+        return "conflict"

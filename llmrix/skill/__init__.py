@@ -35,10 +35,12 @@ from .storage.sqlalchemy_store import SQLAlchemyStorage
 
 # --- Services ---
 from .services.manager import GitSkillManager
-from .services.publisher import SkillPublisher
+from .services.publisher import SkillPublisher, build_authed_url
 from .services.syncer import SkillSyncer, RemoteSource, SyncResult
+from .services.scheduler import SkillScheduler
+from .storage.base import OwnershipStatus
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __all__ = [
     # Core
@@ -64,7 +66,11 @@ __all__ = [
     # Services
     "GitSkillManager",
     "SkillPublisher",
+    "build_authed_url",
     "SkillSyncer",
     "RemoteSource",
     "SyncResult",
+    "SkillScheduler",
+    # Storage
+    "OwnershipStatus",
 ]

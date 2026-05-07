@@ -8,7 +8,7 @@ class Skill:
     code: str
     name: str
     version: int = 1
-    description: Optional[str] = None
+    introduce: Optional[str] = None
     category: str = "Other"
     commit_hash: Optional[str] = None
     file_path: Optional[str] = None
@@ -21,7 +21,7 @@ class SkillVersion:
     code: str
     version: int
     commit_hash: str
-    author_id: Any
+    user_id: Any
     file_path: Optional[str] = None
     message: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)

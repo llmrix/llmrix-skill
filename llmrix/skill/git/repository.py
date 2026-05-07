@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 import subprocess
 from contextlib import contextmanager
 from typing import Any, Generator, List, Optional
@@ -105,5 +106,27 @@ class GitRepository:
         self._execute(["add", rel_path])
         
         msg = message or f"Revert skill: {code} to {commit_hash} by user: {author_id}"
+        self._execute(["commit", "-m", msg])
+        return self._execute(["rev-parse", "HEAD"])
+
+    def remove_skill(self, code: str, author_id: Any, message: Optional[str] = None) -> Optional[str]:
+        """Removes a skill directory from the repo, commits and pushes the deletion."""
+        skill_path = self.get_skill_path(code)
+        rel_path = self.get_relative_path(code)
+
+        if not os.path.exists(skill_path):
+            logger.warning(f"Skill path not found, skipping git removal: {skill_path}")
+            return None
+
+        shutil.rmtree(skill_path)
+        self._execute(["rm", "-r", "--cached", "--ignore-unmatch", rel_path])
+        self._execute(["add", "-A", rel_path])
+
+        diff = self._execute(["diff", "--cached", "--name-only"])
+        if not diff:
+            logger.info(f"No staged changes after removing skill {code}, skipping commit")
+            return None
+
+        msg = message or f"Delete skill: {code} by user: {author_id}"
         self._execute(["commit", "-m", msg])
         return self._execute(["rev-parse", "HEAD"])

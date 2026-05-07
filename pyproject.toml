@@ -4,11 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "llmrix-skill"
-version = "0.2.0"
+version = "0.2.1"
 description = "A professional Git-based Skill management library for LLM agents."
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "LLMRix Team", email = "support@llmrix.com"}
 ]

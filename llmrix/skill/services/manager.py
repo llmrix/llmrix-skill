@@ -94,5 +94,5 @@ class GitSkillManager:
     @staticmethod
     def get_interim_path(uid: Any) -> str:
         """Static utility to resolve a standardized interim upload path for users."""
-        base = os.path.expanduser(f"~/llmrix/skills/interim/{uid}")
+        base = os.path.expanduser(f"~/.llmrix/skills-remote/update/{uid}")
         return os.path.abspath(base)

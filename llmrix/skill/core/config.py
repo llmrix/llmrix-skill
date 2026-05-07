@@ -19,7 +19,8 @@ class SkillConfig:
         branch: str = "main"
     ) -> "SkillConfig":
         if not workspace:
-            workspace = os.path.expanduser("~/llmrix/skills/remote")
+            # Default layout: ~/.llmrix/skills-remote/update/
+            workspace = os.path.expanduser("~/.llmrix/skills-remote/update")
         
         return cls(
             repo_url=repo_url,
@@ -29,7 +30,9 @@ class SkillConfig:
 
     @property
     def cache_root(self) -> str:
-        return os.path.dirname(self.workspace)
+        """Returns ~/.llmrix/skills-remote/cache (sibling of update/)."""
+        remote_root = os.path.dirname(self.workspace)
+        return os.path.join(remote_root, "cache")
 
     @property
     def skills_root(self) -> str:
