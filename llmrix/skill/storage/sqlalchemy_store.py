@@ -34,7 +34,7 @@ class SkillVersionModel(Base):
     git_commit = Column(String(40), nullable=False)
     git_path = Column(String(500), nullable=False)
     user_id = Column(String(100), nullable=False)
-    remark = Column(Text, nullable=True)
+    introduce = Column(Text, nullable=True)
     deleted = Column(Integer, default=0)
     create_time = Column(DateTime, default=datetime.utcnow)
 
@@ -104,7 +104,7 @@ class SQLAlchemyStorage(BaseStorage):
                 git_commit=version.commit_hash,
                 git_path=version.file_path,
                 user_id=str(version.author_id),
-                remark=version.message
+                introduce=version.message
             )
             db.add(model)
             db.commit()
@@ -119,7 +119,7 @@ class SQLAlchemyStorage(BaseStorage):
                     commit_hash=m.git_commit,
                     author_id=m.user_id,
                     file_path=m.git_path,
-                    message=m.remark,
+                    message=m.introduce,
                     created_at=m.create_time
                 ) for m in models
             ]
@@ -134,7 +134,7 @@ class SQLAlchemyStorage(BaseStorage):
                 commit_hash=m.git_commit,
                 author_id=m.user_id,
                 file_path=m.git_path,
-                message=m.remark,
+                message=m.introduce,
                 created_at=m.create_time
             )
 
