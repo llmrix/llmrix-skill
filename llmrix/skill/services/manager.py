@@ -77,6 +77,17 @@ class GitSkillManager:
         )
         return self.publisher.publish(**kwargs)
 
+    def publish_zip(self, **kwargs) -> Skill:
+        """
+        Management Mode API: Deploys a new version from a zip file.
+        Ensures the repository is initialized before publishing.
+        """
+        self.repository.ensure_initialized(
+            remote_url=self.config.repo_url, 
+            branch=self.config.branch
+        )
+        return self.publisher.publish_zip(**kwargs)
+
     def rollback(self, **kwargs) -> Skill:
         """Management Mode API: Reverts to a previous version."""
         self.repository.ensure_initialized(
