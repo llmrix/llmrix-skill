@@ -41,7 +41,7 @@ from llmrix.skill.services.publisher import SkillPublisher
 from llmrix.skill.services.syncer import SkillSyncer, RemoteSource, SyncResult
 from llmrix.skill.services.scheduler import SkillScheduler
 
-__version__ = "0.3.0"
+__version__ = "0.2.5"
 
 __all__ = [
     # SDK
