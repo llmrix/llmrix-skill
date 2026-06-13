@@ -1,8 +1,8 @@
 """
 core: Cross-cutting concerns — configuration, exceptions, and utilities.
 """
-from .config import SkillConfig
-from .exceptions import (
+from llmrix.skill.config import SkillConfig
+from llmrix.skill.exceptions import (
     GitSkillError,
     SkillNotFoundError,
     VersionNotFoundError,
@@ -10,8 +10,8 @@ from .exceptions import (
     ValidationError,
     GitOperationError,
 )
-from .utils import build_file_tree
-from .plugin import BaseSkill
+from llmrix.skill.utils import build_file_tree, build_authed_url
+from llmrix.skill.plugin import BaseSkill
 
 __all__ = [
     "SkillConfig",
@@ -22,5 +22,6 @@ __all__ = [
     "ValidationError",
     "GitOperationError",
     "build_file_tree",
+    "build_authed_url",
     "BaseSkill",
 ]

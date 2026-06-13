@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, List, Literal, Optional
+
 from llmrix.skill.models.schema import Skill, SkillVersion
 
 # Ownership check result: "free" | "own" | "conflict"
 OwnershipStatus = Literal["free", "own", "conflict"]
+
 
 class BaseStorage(ABC):
     """
@@ -39,6 +41,11 @@ class BaseStorage(ABC):
     @abstractmethod
     def can_modify(self, code: str, user_id: Any) -> bool:
         """Check if the user has permission to modify the skill."""
+        pass
+
+    @abstractmethod
+    def delete_skill(self, code: str) -> None:
+        """Soft-delete a skill and all its versions."""
         pass
 
     def check_ownership(self, code: str, user_id: Any) -> OwnershipStatus:

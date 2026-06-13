@@ -1,144 +1,133 @@
 from typing import Any, List, Optional
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime
-from sqlalchemy.orm import declarative_base, sessionmaker
-from datetime import datetime
 
-from llmrix.skill.storage.base import BaseStorage
+from sqlalchemy.orm import sessionmaker
+
+from llmrix.skill.base import BaseStorage, OwnershipStatus
 from llmrix.skill.models.schema import Skill, SkillVersion
+from llmrix.skill.models.orm import SkillInfoModel, SkillVersionModel
 
-Base = declarative_base()
-
-class SkillModel(Base):
-    __tablename__ = "skill_info"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    skill_code = Column(String(100), unique=True, nullable=False, index=True)
-    skill_name = Column(String(200), nullable=False)
-    introduce = Column(Text, nullable=True) # Description
-    category = Column(String(100), nullable=True)
-    version = Column(Integer, default=1)
-    git_commit = Column(String(40), nullable=False)
-    git_path = Column(String(500), nullable=False)
-    status = Column(Integer, default=0)
-    user_id = Column(String(100), nullable=True) # Author/Owner
-    deleted = Column(Integer, default=0)
-    create_time = Column(DateTime, default=datetime.utcnow)
-    update_time = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-class SkillVersionModel(Base):
-    __tablename__ = "skill_version"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    skill_code = Column(String(100), nullable=False, index=True)
-    version = Column(Integer, nullable=False)
-    git_commit = Column(String(40), nullable=False)
-    git_path = Column(String(500), nullable=False)
-    user_id = Column(String(100), nullable=False)
-    introduce = Column(Text, nullable=True)
-    deleted = Column(Integer, default=0)
-    create_time = Column(DateTime, default=datetime.utcnow)
 
 class SQLAlchemyStorage(BaseStorage):
     """
     Database agnostic storage using SQLAlchemy ORM.
-    Supports MySQL, PostgreSQL, SQLite, etc.
+    Supports MySQL, PostgreSQL, etc.
     """
-    def __init__(self, engine_or_url: Any, auto_create_tables: bool = True):
-        if isinstance(engine_or_url, str):
-            self.engine = create_engine(engine_or_url)
-        else:
-            self.engine = engine_or_url
-            
-        self.SessionLocal = sessionmaker(bind=self.engine)
-        
-        if auto_create_tables:
-            Base.metadata.create_all(self.engine)
 
-    def _to_skill(self, model: SkillModel) -> Skill:
+    def __init__(self, engine):
+        self.engine = engine
+        self._session_factory = sessionmaker(bind=self.engine)
+
+    def _row_to_skill(self, row: SkillInfoModel) -> Skill:
         return Skill(
-            code=model.skill_code,
-            name=model.skill_name,
-            version=model.version,
-            description=model.introduce,
-            category=model.category,
-            commit_hash=model.git_commit,
-            file_path=model.git_path,
-            status=model.status
+            code=row.skill_code,
+            name=row.skill_name,
+            version=row.version,
+            description=row.introduce,
+            category=row.category,
+            git_commit=row.git_commit,
+            git_path=row.git_path,
+            status=row.status,
+            user_id=row.user_id,
         )
 
     def get_skill(self, code: str) -> Optional[Skill]:
-        with self.SessionLocal() as db:
-            model = db.query(SkillModel).filter_by(skill_code=code, deleted=0).first()
-            return self._to_skill(model) if model else None
+        with self._session_factory() as db:
+            row = db.query(SkillInfoModel).filter_by(skill_code=code, deleted=False).first()
+            return self._row_to_skill(row) if row else None
 
     def save_skill(self, skill: Skill) -> None:
-        with self.SessionLocal() as db:
-            model = db.query(SkillModel).filter_by(skill_code=skill.code, deleted=0).first()
-            if model:
-                model.skill_name = skill.name
-                model.introduce = skill.description
-                model.version = skill.version
-                model.git_commit = skill.commit_hash
-                model.git_path = skill.file_path
-                model.status = skill.status
-                model.category = skill.category
+        with self._session_factory() as db:
+            row = db.query(SkillInfoModel).filter_by(skill_code=skill.code, deleted=False).first()
+            if row:
+                row.skill_name = skill.name
+                row.introduce = skill.description
+                row.version = skill.version
+                row.git_commit = skill.git_commit
+                row.git_path = skill.git_path
+                row.status = skill.status
+                row.category = skill.category
             else:
-                model = SkillModel(
+                row = SkillInfoModel(
                     skill_code=skill.code,
                     skill_name=skill.name,
                     introduce=skill.description,
                     version=skill.version,
-                    git_commit=skill.commit_hash,
-                    git_path=skill.file_path,
+                    git_commit=skill.git_commit,
+                    git_path=skill.git_path,
                     status=skill.status,
-                    category=skill.category
+                    category=skill.category,
+                    user_id=skill.user_id,
                 )
-                db.add(model)
+                db.add(row)
             db.commit()
 
     def add_version(self, version: SkillVersion) -> None:
-        with self.SessionLocal() as db:
-            model = SkillVersionModel(
+        with self._session_factory() as db:
+            row = SkillVersionModel(
                 skill_code=version.code,
                 version=version.version,
-                git_commit=version.commit_hash,
-                git_path=version.file_path,
-                user_id=str(version.author_id),
-                introduce=version.message
+                git_commit=version.git_commit,
+                git_path=version.git_path,
+                user_id=version.user_id,
+                message=version.message,
             )
-            db.add(model)
+            db.add(row)
             db.commit()
 
     def get_history(self, code: str) -> List[SkillVersion]:
-        with self.SessionLocal() as db:
-            models = db.query(SkillVersionModel).filter_by(skill_code=code, deleted=0).order_by(SkillVersionModel.version.desc()).all()
+        with self._session_factory() as db:
+            rows = (
+                db.query(SkillVersionModel)
+                .filter_by(skill_code=code, deleted=False)
+                .order_by(SkillVersionModel.version.desc())
+                .all()
+            )
             return [
                 SkillVersion(
-                    code=m.skill_code,
-                    version=m.version,
-                    commit_hash=m.git_commit,
-                    author_id=m.user_id,
-                    file_path=m.git_path,
-                    message=m.introduce,
-                    created_at=m.create_time
-                ) for m in models
+                    code=r.skill_code,
+                    version=r.version,
+                    git_commit=r.git_commit,
+                    user_id=r.user_id,
+                    git_path=r.git_path,
+                    message=r.message,
+                    created_at=r.created_at,
+                )
+                for r in rows
             ]
 
     def get_version(self, code: str, version_number: int) -> Optional[SkillVersion]:
-        with self.SessionLocal() as db:
-            m = db.query(SkillVersionModel).filter_by(skill_code=code, version=version_number, deleted=0).first()
-            if not m: return None
+        with self._session_factory() as db:
+            r = db.query(SkillVersionModel).filter_by(
+                skill_code=code, version=version_number, deleted=False
+            ).first()
+            if not r:
+                return None
             return SkillVersion(
-                code=m.skill_code,
-                version=m.version,
-                commit_hash=m.git_commit,
-                author_id=m.user_id,
-                file_path=m.git_path,
-                message=m.introduce,
-                created_at=m.create_time
+                code=r.skill_code,
+                version=r.version,
+                git_commit=r.git_commit,
+                user_id=r.user_id,
+                git_path=r.git_path,
+                message=r.message,
+                created_at=r.created_at,
             )
 
     def can_modify(self, code: str, user_id: Any) -> bool:
-        with self.SessionLocal() as db:
-            model = db.query(SkillModel).filter_by(skill_code=code, user_id=str(user_id), deleted=0).first()
-            return model is not None
+        with self._session_factory() as db:
+            row = db.query(SkillInfoModel).filter_by(
+                skill_code=code, user_id=int(user_id), deleted=False
+            ).first()
+            return row is not None
+
+    def check_ownership(self, code: str, user_id: Any) -> OwnershipStatus:
+        with self._session_factory() as db:
+            row = db.query(SkillInfoModel).filter_by(skill_code=code, deleted=False).first()
+            if not row:
+                return "free"
+            return "own" if int(row.user_id) == int(user_id) else "conflict"
+
+    def delete_skill(self, code: str) -> None:
+        with self._session_factory() as db:
+            db.query(SkillInfoModel).filter_by(skill_code=code).update({"deleted": True})
+            db.query(SkillVersionModel).filter_by(skill_code=code).update({"deleted": True})
+            db.commit()

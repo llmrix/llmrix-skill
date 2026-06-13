@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Optional
+
+DEFAULT_CATEGORY = "Other"
 
 @dataclass
 class Skill:
@@ -8,20 +10,20 @@ class Skill:
     code: str
     name: str
     version: int = 1
-    introduce: Optional[str] = None
-    category: str = "Other"
-    commit_hash: Optional[str] = None
-    file_path: Optional[str] = None
-    status: int = 0
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    description: Optional[str] = None
+    category: str = DEFAULT_CATEGORY
+    git_commit: Optional[str] = None
+    git_path: Optional[str] = None
+    status: str = "inactive"
+    user_id: int = 0
 
 @dataclass
 class SkillVersion:
     """Represents a specific point-in-time version of a skill."""
     code: str
     version: int
-    commit_hash: str
-    user_id: Any
-    file_path: Optional[str] = None
+    git_commit: str
+    user_id: int
+    git_path: Optional[str] = None
     message: Optional[str] = None
     created_at: datetime = field(default_factory=datetime.now)

@@ -19,7 +19,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/llmrix/llmrix-skillhub"
+Homepage = "https://github.com/llmrix/llmrix-skill"
 
 [tool.setuptools.packages.find]
 where = ["."]

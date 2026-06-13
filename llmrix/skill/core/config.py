@@ -2,26 +2,27 @@ import os
 from dataclasses import dataclass
 from typing import Optional
 
+_DEFAULT_SKILLS_SUBDIR = "skills"
+
 @dataclass
 class SkillConfig:
     """Configuration for the Skill management system."""
     repo_url: str
     workspace: str
     branch: str = "main"
-    skills_path: str = "skills"
-    cache_ttl: int = 300
+    skills_subdir: str = _DEFAULT_SKILLS_SUBDIR
 
     @classmethod
     def create(
-        cls, 
-        repo_url: str, 
-        workspace: Optional[str] = None, 
+        cls,
+        repo_url: str,
+        workspace: Optional[str] = None,
         branch: str = "main"
     ) -> "SkillConfig":
         if not workspace:
-            # Default layout: ~/.llmrix/skills-remote/update/
-            workspace = os.path.expanduser("~/.llmrix/skills-remote/update")
-        
+            from src.harness.config.path import AppPaths
+            workspace = str(AppPaths.SKILLS_UPDATE)
+
         return cls(
             repo_url=repo_url,
             workspace=os.path.abspath(os.path.expanduser(workspace)),
@@ -30,10 +31,11 @@ class SkillConfig:
 
     @property
     def cache_root(self) -> str:
-        """Returns ~/.llmrix/skills-remote/cache (sibling of update/)."""
+        """Returns the cache directory (sibling of update/ under SKILLS_REMOTE)."""
         remote_root = os.path.dirname(self.workspace)
         return os.path.join(remote_root, "cache")
 
     @property
-    def skills_root(self) -> str:
-        return os.path.join(self.workspace, self.skills_path)
+    def skills_dir(self) -> str:
+        """Absolute path to the skills subdirectory inside the workspace."""
+        return os.path.join(self.workspace, self.skills_subdir)

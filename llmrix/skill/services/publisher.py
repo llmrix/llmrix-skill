@@ -2,16 +2,18 @@ import io
 import os
 import shutil
 import logging
-import urllib.parse
 import zipfile
 from typing import Any, Optional
+
 from llmrix.skill.git.repository import GitRepository
 from llmrix.skill.storage.base import BaseStorage
 from llmrix.skill.models.metadata import MetadataParser
 from llmrix.skill.models.schema import Skill, SkillVersion
 from llmrix.skill.core.exceptions import PermissionDeniedError, VersionNotFoundError
+from llmrix.skill.core.utils import build_authed_url
 
 logger = logging.getLogger(__name__)
+
 
 class SkillPublisher:
     """
@@ -20,8 +22,8 @@ class SkillPublisher:
     """
 
     def __init__(
-        self, 
-        git: GitRepository, 
+        self,
+        git: GitRepository,
         storage: BaseStorage,
         parser: Optional[MetadataParser] = None,
         default_branch: str = "main"
@@ -37,13 +39,13 @@ class SkillPublisher:
         zip_bytes: bytes,
         user_id: Any,
         name: Optional[str] = None,
-        introduce: Optional[str] = None,
+        description: Optional[str] = None,
         category: Optional[str] = None,
         message: Optional[str] = None,
         branch: Optional[str] = None,
     ) -> Skill:
         """Convenience wrapper: extracts zip_bytes to a temp dir then calls publish()."""
-        interim = self.git.get_skill_path(f"_interim_{code}")
+        interim = self.git.skill_dir(f"_interim_{code}")
         if os.path.exists(interim):
             shutil.rmtree(interim)
         os.makedirs(interim, exist_ok=True)
@@ -51,7 +53,7 @@ class SkillPublisher:
             _extract_zip_to(zip_bytes, interim)
             return self.publish(
                 code=code, source_dir=interim, user_id=user_id,
-                name=name, introduce=introduce, category=category,
+                name=name, description=description, category=category,
                 message=message, branch=branch,
             )
         finally:
@@ -64,7 +66,7 @@ class SkillPublisher:
         source_dir: str,
         user_id: Any,
         name: Optional[str] = None,
-        introduce: Optional[str] = None,
+        description: Optional[str] = None,
         category: Optional[str] = None,
         message: Optional[str] = None,
         branch: Optional[str] = None
@@ -79,27 +81,27 @@ class SkillPublisher:
             # 1. Authorization
             existing = self.storage.get_skill(code)
             if existing and not self.storage.can_modify(code, user_id):
-                raise PermissionDeniedError(f"User {user_id} lacks permission for skill {code}")
+                raise PermissionDeniedError("User %s lacks permission for skill %s" % (user_id, code))
 
             # 2. Filesystem Update
-            target_path = self.git.get_skill_path(code)
+            target_path = self.git.skill_dir(code)
             if os.path.exists(target_path):
                 shutil.rmtree(target_path)
             shutil.copytree(source_dir, target_path)
 
             # 3. Metadata Extraction
             manifest_path = os.path.join(target_path, "SKILL.md")
-            manifest = {}
+            frontmatter = {}
             if os.path.exists(manifest_path):
                 with open(manifest_path, "r", encoding="utf-8") as f:
-                    manifest = self.parser.parse_manifest(f.read())
+                    frontmatter = self.parser.parse_frontmatter(f.read())
 
-            final_name = name or manifest.get("name") or code
-            final_introduce = introduce or manifest.get("description")
-            final_cat = (
+            final_name = name or frontmatter.get("name") or code
+            final_description = description or frontmatter.get("description")
+            final_category = (
                 category
-                or manifest.get("category")
-                or self.parser.detect_category(code, final_name, final_introduce or "")
+                or frontmatter.get("category")
+                or self.parser.detect_category(code, final_name, final_description or "")
             )
 
             # 4. Git Orchestration
@@ -112,22 +114,22 @@ class SkillPublisher:
                 code=code,
                 name=final_name,
                 version=new_version_num,
-                introduce=final_introduce,
-                category=final_cat,
-                commit_hash=commit_hash,
-                file_path=self.git.get_relative_path(code),
-                status=0
+                description=final_description,
+                category=final_category,
+                git_commit=commit_hash,
+                git_path=self.git.skill_rel_path(code),
+                status="inactive",
+                user_id=int(user_id),
             )
-            skill.user_id = user_id  # type: ignore[attr-defined]
 
             self.storage.save_skill(skill)
             self.storage.add_version(SkillVersion(
                 code=code,
                 version=new_version_num,
-                commit_hash=commit_hash,
-                user_id=user_id,
-                file_path=skill.file_path,
-                message=message
+                git_commit=commit_hash,
+                user_id=int(user_id),
+                git_path=skill.git_path,
+                message=message,
             ))
 
             return skill
@@ -144,15 +146,15 @@ class SkillPublisher:
         target_branch = branch or self.default_branch
         ver = self.storage.get_version(code, target_version)
         if not ver:
-            raise VersionNotFoundError(f"Version {target_version} not found for {code}")
+            raise VersionNotFoundError("Version %s not found for %s" % (target_version, code))
 
         with self.git.lock(code):
             self.git.fetch_latest(branch=target_branch)
 
             if not self.storage.can_modify(code, user_id):
-                raise PermissionDeniedError(f"Access denied for skill {code}")
+                raise PermissionDeniedError("Access denied for skill %s" % code)
 
-            new_hash = self.git.revert_to_commit(code, ver.commit_hash, user_id, message)
+            new_commit = self.git.revert_to_commit(code, ver.git_commit, user_id, message)
             self.git.push_changes(branch=target_branch)
 
             existing = self.storage.get_skill(code)
@@ -162,48 +164,25 @@ class SkillPublisher:
                 code=code,
                 name=existing.name,
                 version=new_version_num,
-                introduce=existing.introduce,
+                description=existing.description,
                 category=existing.category,
-                commit_hash=new_hash,
-                file_path=existing.file_path,
-                status=existing.status
+                git_commit=new_commit,
+                git_path=existing.git_path,
+                status=existing.status,
+                user_id=int(user_id),
             )
-            skill.user_id = user_id  # type: ignore[attr-defined]
 
             self.storage.save_skill(skill)
             self.storage.add_version(SkillVersion(
                 code=code,
                 version=new_version_num,
-                commit_hash=new_hash,
-                user_id=user_id,
-                file_path=skill.file_path,
-                message=message or f"Rollback to v{target_version}"
+                git_commit=new_commit,
+                user_id=int(user_id),
+                git_path=skill.git_path,
+                message=message or "Rollback to v%s" % target_version,
             ))
 
             return skill
-
-
-# ---------------------------------------------------------------------------
-# Module-level helpers (also used by GitSkillManager / external callers)
-# ---------------------------------------------------------------------------
-
-def build_authed_url(url: str, token: Optional[str] = None,
-                     username: Optional[str] = None, password: Optional[str] = None) -> str:
-    """
-    Embed authentication into an HTTPS Git URL.
-
-    - token mode:    https://<token>@github.com/...
-    - user/pass mode: https://<user>:<pass>@github.com/...
-    """
-    if not url.startswith("https://"):
-        return url
-    if token:
-        return url.replace("https://", f"https://{token}@", 1)
-    if username and password:
-        u = urllib.parse.quote(username, safe="")
-        p = urllib.parse.quote(password, safe="")
-        return url.replace("https://", f"https://{u}:{p}@", 1)
-    return url
 
 
 def _extract_zip_to(zip_bytes: bytes, dest_dir: str) -> None:
@@ -211,15 +190,18 @@ def _extract_zip_to(zip_bytes: bytes, dest_dir: str) -> None:
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         names = zf.namelist()
         top_dirs = {n.split("/")[0] for n in names if "/" in n}
-        strip = (list(top_dirs)[0] + "/") if (
-            len(top_dirs) == 1
-            and all(n.startswith(list(top_dirs)[0] + "/") for n in names if "/" in n)
+        top_dir = list(top_dirs)[0] if len(top_dirs) == 1 else None
+        strip = (top_dir + "/") if (
+            top_dir
+            and all(n.startswith(top_dir + "/") for n in names if "/" in n)
         ) else ""
         for member in zf.infolist():
             rel = member.filename[len(strip):] if strip and member.filename.startswith(strip) else member.filename
             if not rel:
                 continue
-            target = os.path.join(dest_dir, rel)
+            target = os.path.realpath(os.path.join(dest_dir, rel))
+            if not target.startswith(os.path.realpath(dest_dir) + os.sep):
+                continue
             if member.is_dir():
                 os.makedirs(target, exist_ok=True)
             else:

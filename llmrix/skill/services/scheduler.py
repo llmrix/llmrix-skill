@@ -3,10 +3,11 @@ scheduler.py — Periodic background sync for remote skill sources.
 
 Usage::
 
-    from llmrix.skill import SkillScheduler, RemoteSource
+    from src.libs.skill import SkillScheduler, RemoteSource
+    from src.harness.config.path import AppPaths
 
     scheduler = SkillScheduler(
-        cache_dir="~/.llmrix/skills-remote/cache",
+        cache_dir=str(AppPaths.SKILLS_CACHE),
         sources=[
             RemoteSource(url="https://github.com/org/skills.git", branch="main", cache_ttl=300),
         ],
@@ -26,7 +27,7 @@ import asyncio
 import logging
 from typing import List, Optional
 
-from llmrix.skill.services.syncer import RemoteSource, SkillSyncer, SyncResult
+from llmrix.skill.syncer import RemoteSource, SkillSyncer, SyncResult
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class SkillScheduler:
     ----------
     cache_dir:
         Local directory for cached repositories.
-        Recommended: ``~/.llmrix/skills-remote/cache``
+        Recommended: ``~/.src.libs.skill.skills-remote/cache``
     sources:
         List of ``RemoteSource`` configs to sync.
     interval:

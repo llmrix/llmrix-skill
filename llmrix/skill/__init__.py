@@ -8,9 +8,12 @@ Package layout:
   storage/   Abstract storage interface + concrete adapters
   services/  High-level orchestration (sync, publish, manage)
 """
+# --- SDK ---
+from llmrix.skill.sdk import init_sdk, init_storage, get_sdk, SkillSDK
+
 # --- Core ---
-from .core.config import SkillConfig
-from .core.exceptions import (
+from llmrix.skill.core.config import SkillConfig
+from llmrix.skill.core.exceptions import (
     GitSkillError,
     SkillNotFoundError,
     VersionNotFoundError,
@@ -18,31 +21,34 @@ from .core.exceptions import (
     ValidationError,
     GitOperationError,
 )
-from .core.utils import build_file_tree
-from .core.plugin import BaseSkill
+from llmrix.skill.core.utils import build_file_tree, build_authed_url
+from llmrix.skill.core.plugin import BaseSkill
 
 # --- Models ---
-from .models.schema import Skill, SkillVersion
-from .models.metadata import MetadataParser
+from llmrix.skill.models.schema import Skill, SkillVersion
+from llmrix.skill.models.metadata import MetadataParser
 
 # --- Git ---
-from .git.repository import GitRepository
+from llmrix.skill.git.repository import GitRepository
 
 # --- Storage ---
-from .storage.base import BaseStorage
-from .storage.mysql import MySQLStorage
-from .storage.sqlalchemy_store import SQLAlchemyStorage
+from llmrix.skill.storage.base import BaseStorage, OwnershipStatus
+from llmrix.skill.storage.sqlalchemy_store import SQLAlchemyStorage
 
 # --- Services ---
-from .services.manager import GitSkillManager
-from .services.publisher import SkillPublisher, build_authed_url
-from .services.syncer import SkillSyncer, RemoteSource, SyncResult
-from .services.scheduler import SkillScheduler
-from .storage.base import OwnershipStatus
+from llmrix.skill.services.manager import GitSkillManager
+from llmrix.skill.services.publisher import SkillPublisher
+from llmrix.skill.services.syncer import SkillSyncer, RemoteSource, SyncResult
+from llmrix.skill.services.scheduler import SkillScheduler
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 __all__ = [
+    # SDK
+    "init_sdk",
+    "init_storage",
+    "get_sdk",
+    "SkillSDK",
     # Core
     "SkillConfig",
     "GitSkillError",
@@ -52,6 +58,7 @@ __all__ = [
     "ValidationError",
     "GitOperationError",
     "build_file_tree",
+    "build_authed_url",
     "BaseSkill",
     # Models
     "Skill",
@@ -61,16 +68,13 @@ __all__ = [
     "GitRepository",
     # Storage
     "BaseStorage",
-    "MySQLStorage",
+    "OwnershipStatus",
     "SQLAlchemyStorage",
     # Services
     "GitSkillManager",
     "SkillPublisher",
-    "build_authed_url",
     "SkillSyncer",
     "RemoteSource",
     "SyncResult",
     "SkillScheduler",
-    # Storage
-    "OwnershipStatus",
 ]
