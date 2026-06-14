@@ -2,7 +2,7 @@ from typing import Any, List, Optional
 
 from sqlalchemy.orm import sessionmaker
 
-from llmrix.skill.base import BaseStorage, OwnershipStatus
+from llmrix.skill.storage.base import BaseStorage, OwnershipStatus
 from llmrix.skill.models.schema import Skill, SkillVersion
 from llmrix.skill.models.orm import SkillInfoModel, SkillVersionModel
 

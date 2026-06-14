@@ -27,7 +27,7 @@ import asyncio
 import logging
 from typing import List, Optional
 
-from llmrix.skill.syncer import RemoteSource, SkillSyncer, SyncResult
+from llmrix.skill.services.syncer import RemoteSource, SkillSyncer, SyncResult
 
 logger = logging.getLogger(__name__)
 
