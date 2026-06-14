@@ -1,42 +1,44 @@
--- SQL Schema for LLMRix SkillHub
--- Target: MySQL/MariaDB
--- Aligned with agent-team/db/mysql.sql
+-- =============================================================================
+-- skill_info — 技能信息表
+-- =============================================================================
 
--- ----------------------------------------
--- Table: skill_info（技能主表）
--- ----------------------------------------
-CREATE TABLE IF NOT EXISTS `skill_info` (
-  `id`          bigint        NOT NULL AUTO_INCREMENT        COMMENT '主键ID',
-  `user_id`     bigint        DEFAULT NULL                   COMMENT '技能创建者ID',
-  `skill_code`  varchar(64)   NOT NULL                       COMMENT '技能唯一标识',
-  `skill_name`  varchar(128)  NOT NULL                       COMMENT '技能名称',
-  `introduce`   varchar(1024) DEFAULT NULL                   COMMENT '技能介绍',
-  `version`     int           NOT NULL DEFAULT '1'           COMMENT '当前最新版本号',
-  `git_commit`  varchar(64)   DEFAULT NULL                   COMMENT '最新提交 commit hash',
-  `git_path`    varchar(255)  DEFAULT NULL                   COMMENT 'Git 存储路径',
-  `status`      tinyint       NOT NULL DEFAULT '0'           COMMENT '0-待审核 1-已上架 2-已下架',
-  `category`    varchar(64)   DEFAULT NULL                   COMMENT '技能分类',
-  `deleted`     tinyint       NOT NULL DEFAULT '0'           COMMENT '0-正常 1-已删除',
-  `create_time` datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `update_time` datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_skill_code` (`skill_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='技能信息表';
+CREATE TABLE IF NOT EXISTS skill_info (
+    id          BIGSERIAL       PRIMARY KEY,                    -- 自增主键
+    user_id     BIGINT          DEFAULT NULL,             -- 所属用户 ID（null=全局）
+    skill_code  VARCHAR(64)     NOT NULL,                 -- 技能唯一编码
+    skill_name  VARCHAR(128)    NOT NULL,                 -- 技能名称
+    introduce   VARCHAR(1024)   DEFAULT NULL,             -- 技能简介
+    version     INT             NOT NULL DEFAULT 1,       -- 当前版本号
+    git_commit  VARCHAR(64)     DEFAULT NULL,             -- 版本提交 hash
+    git_path    VARCHAR(255)    DEFAULT NULL,             -- 仓库路径
+    status      SMALLINT        NOT NULL DEFAULT 0,       -- 0=下架 1=上架
+    category    VARCHAR(64)     DEFAULT NULL,             -- 技能分类
+    deleted     SMALLINT        NOT NULL DEFAULT 0,       -- 软删除：0=正常 1=已删除
+    created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 创建时间
+    updated_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 最后更新时间
+    CONSTRAINT uk_skill_info_code UNIQUE (skill_code)
+);
 
--- ----------------------------------------
--- Table: skill_version（技能版本历史表）
--- ----------------------------------------
-CREATE TABLE IF NOT EXISTS `skill_version` (
-  `id`          bigint        NOT NULL AUTO_INCREMENT        COMMENT '主键ID',
-  `skill_code`  varchar(64)   NOT NULL                       COMMENT '技能唯一标识',
-  `version`     int           NOT NULL                       COMMENT '版本号',
-  `git_commit`  varchar(64)   NOT NULL                       COMMENT '版本对应的 commit hash',
-  `git_path`    varchar(255)  DEFAULT NULL                   COMMENT 'Git 存储路径',
-  `user_id`     bigint        NOT NULL                       COMMENT '发布者用户ID',
-  `introduce`   varchar(255)  DEFAULT NULL                   COMMENT '版本说明/提交信息',
-  `deleted`     tinyint       NOT NULL DEFAULT '0'           COMMENT '0-正常 1-已删除',
-  `create_time` datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_skill_version` (`skill_code`, `version`),
-  KEY `idx_skill_code` (`skill_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='技能版本历史表';
+
+CREATE OR REPLACE TRIGGER trg_skill_info_updated_at BEFORE UPDATE ON skill_info FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+
+-- =============================================================================
+-- skill_version — 技能版本历史表
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS skill_version (
+    id          BIGSERIAL       PRIMARY KEY,                    -- 自增主键
+    skill_code  VARCHAR(64)     NOT NULL,                 -- 关联技能编码
+    version     INT             NOT NULL,                 -- 版本号
+    git_commit  VARCHAR(64)     NOT NULL,                 -- 版本提交 hash
+    git_path    VARCHAR(255)    DEFAULT NULL,             -- 仓库路径
+    user_id     BIGINT          NOT NULL,                 -- 发布用户 ID
+    introduce   VARCHAR(255)    DEFAULT NULL,             -- 版本变更说明
+    deleted     SMALLINT        NOT NULL DEFAULT 0,       -- 软删除：0=正常 1=已删除
+    created_at  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 创建时间
+    CONSTRAINT uk_skill_version UNIQUE (skill_code, version)
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_skill_version_skill_code ON skill_version (skill_code);
