@@ -1,4 +1,5 @@
-from sqlalchemy import Boolean, Column, Integer, String, Text, DateTime, ForeignKey, func
+from datetime import datetime
+from sqlalchemy import Column, Integer, SmallInteger, String, Text, DateTime, ForeignKey, func
 from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
@@ -16,10 +17,10 @@ class SkillInfoModel(Base):
     git_path = Column(String(256), nullable=True)
     status = Column(String(16), nullable=False, default='inactive')
     category = Column(String(32), nullable=True)
-    deleted = Column(Boolean, nullable=False, default=False)
+    deleted = Column(SmallInteger, nullable=False, default=0)
 
     created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now)
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=datetime.utcnow)
 
 class SkillVersionModel(Base):
     __tablename__ = 'skill_version'
@@ -31,7 +32,7 @@ class SkillVersionModel(Base):
     git_path = Column(String(256), nullable=True)
     user_id = Column(Integer, nullable=False)
     message = Column(Text, nullable=True)
-    deleted = Column(Boolean, nullable=False, default=False)
+    deleted = Column(SmallInteger, nullable=False, default=0)
 
     created_at = Column(DateTime, nullable=False, server_default=func.now())
-    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=func.now)
+    updated_at = Column(DateTime, nullable=False, server_default=func.now(), onupdate=datetime.utcnow)

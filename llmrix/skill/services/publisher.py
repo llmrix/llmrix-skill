@@ -189,6 +189,8 @@ def _extract_zip_to(zip_bytes: bytes, dest_dir: str) -> None:
     """Extract zip bytes to dest_dir, stripping a single top-level wrapper dir if present."""
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
         names = zf.namelist()
+        # Filter out macOS junk entries
+        names = [n for n in names if not n.startswith("__MACOSX") and "/__MACOSX/" not in n]
         top_dirs = {n.split("/")[0] for n in names if "/" in n}
         top_dir = list(top_dirs)[0] if len(top_dirs) == 1 else None
         strip = (top_dir + "/") if (
@@ -196,6 +198,9 @@ def _extract_zip_to(zip_bytes: bytes, dest_dir: str) -> None:
             and all(n.startswith(top_dir + "/") for n in names if "/" in n)
         ) else ""
         for member in zf.infolist():
+            # Skip macOS junk
+            if member.filename.startswith("__MACOSX") or "/__MACOSX/" in member.filename:
+                continue
             rel = member.filename[len(strip):] if strip and member.filename.startswith(strip) else member.filename
             if not rel:
                 continue

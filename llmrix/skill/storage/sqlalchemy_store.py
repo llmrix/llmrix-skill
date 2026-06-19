@@ -32,12 +32,12 @@ class SQLAlchemyStorage(BaseStorage):
 
     def get_skill(self, code: str) -> Optional[Skill]:
         with self._session_factory() as db:
-            row = db.query(SkillInfoModel).filter_by(skill_code=code, deleted=False).first()
+            row = db.query(SkillInfoModel).filter_by(skill_code=code, deleted=0).first()
             return self._row_to_skill(row) if row else None
 
     def save_skill(self, skill: Skill) -> None:
         with self._session_factory() as db:
-            row = db.query(SkillInfoModel).filter_by(skill_code=skill.code, deleted=False).first()
+            row = db.query(SkillInfoModel).filter_by(skill_code=skill.code, deleted=0).first()
             if row:
                 row.skill_name = skill.name
                 row.introduce = skill.description
@@ -78,7 +78,7 @@ class SQLAlchemyStorage(BaseStorage):
         with self._session_factory() as db:
             rows = (
                 db.query(SkillVersionModel)
-                .filter_by(skill_code=code, deleted=False)
+                .filter_by(skill_code=code, deleted=0)
                 .order_by(SkillVersionModel.version.desc())
                 .all()
             )
@@ -98,7 +98,7 @@ class SQLAlchemyStorage(BaseStorage):
     def get_version(self, code: str, version_number: int) -> Optional[SkillVersion]:
         with self._session_factory() as db:
             r = db.query(SkillVersionModel).filter_by(
-                skill_code=code, version=version_number, deleted=False
+                skill_code=code, version=version_number, deleted=0
             ).first()
             if not r:
                 return None
@@ -115,19 +115,19 @@ class SQLAlchemyStorage(BaseStorage):
     def can_modify(self, code: str, user_id: Any) -> bool:
         with self._session_factory() as db:
             row = db.query(SkillInfoModel).filter_by(
-                skill_code=code, user_id=int(user_id), deleted=False
+                skill_code=code, user_id=int(user_id), deleted=0
             ).first()
             return row is not None
 
     def check_ownership(self, code: str, user_id: Any) -> OwnershipStatus:
         with self._session_factory() as db:
-            row = db.query(SkillInfoModel).filter_by(skill_code=code, deleted=False).first()
+            row = db.query(SkillInfoModel).filter_by(skill_code=code, deleted=0).first()
             if not row:
                 return "free"
             return "own" if int(row.user_id) == int(user_id) else "conflict"
 
     def delete_skill(self, code: str) -> None:
         with self._session_factory() as db:
-            db.query(SkillInfoModel).filter_by(skill_code=code).update({"deleted": True})
-            db.query(SkillVersionModel).filter_by(skill_code=code).update({"deleted": True})
+            db.query(SkillInfoModel).filter_by(skill_code=code).update({"deleted": 1})
+            db.query(SkillVersionModel).filter_by(skill_code=code).update({"deleted": 1})
             db.commit()

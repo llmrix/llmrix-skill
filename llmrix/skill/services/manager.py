@@ -16,10 +16,11 @@ logger = logging.getLogger(__name__)
 
 class GitSkillManager:
     """
-    Converged Orchestrator for SkillHub.
+    High-level facade for Git-backed skill management.
 
-    Acts as a high-level facade that decouples configuration from method calls,
-    providing a clean interface for both Agent Workers and Management APIs.
+    Supports two modes:
+      - Worker mode  : sync() — pull latest changes from remote
+      - Management mode : publish_zip() / rollback() — write and push
     """
 
     def __init__(
@@ -27,30 +28,27 @@ class GitSkillManager:
         repo_url: str,
         workspace: Optional[str] = None,
         branch: str = "main",
-        storage: Optional[BaseStorage] = None
+        storage: Optional[BaseStorage] = None,
     ):
         sdk = get_sdk()
-        # 1. Fallback to provided storage or SDK storage
         self.storage = storage or sdk.storage
 
-        # 2. Initialize Internal Components
         self.config = SkillConfig.create(repo_url, workspace, branch)
         self.repo = GitRepository(root=self.config.workspace, skills_subdir=self.config.skills_subdir)
         self.parser = MetadataParser()
 
-        # 3. Read Responsibility (Syncing)
         cache_dir = sdk.path_provider.get_cache_dir() if sdk.path_provider else self.config.cache_root
         self.syncer = SkillSyncer(cache_dir=cache_dir)
 
-        # 4. Write Responsibility (Publishing — lazy)
-        self._publisher: Optional[SkillPublisher] = None
-        if self.storage:
-            self._publisher = SkillPublisher(
+        self._publisher: Optional[SkillPublisher] = (
+            SkillPublisher(
                 git=self.repo,
                 storage=self.storage,
                 parser=self.parser,
-                default_branch=self.config.branch
+                default_branch=self.config.branch,
             )
+            if self.storage else None
+        )
 
     @property
     def publisher(self) -> SkillPublisher:
@@ -58,53 +56,45 @@ class GitSkillManager:
             raise GitSkillError("Storage adapter is required for publishing operations.")
         return self._publisher
 
-    def _ensure_repo(self):
-        """Ensures the repository is initialized before write operations."""
+    def _ensure_repo(self) -> None:
+        """Clone or verify the local repository before any write operation."""
         self.repo.ensure_initialized(
             remote_url=self.config.repo_url,
             branch=self.config.branch,
         )
 
+    # ── Worker mode ───────────────────────────────────────────────────────────
+
     def sync(self) -> str:
-        """
-        Worker Mode API: Synchronizes the local repository.
-        Uses the pre-configured branch and workspace.
-        """
+        """Pull latest changes; returns path to the skills directory."""
         self._ensure_repo()
         self.repo.fetch_latest(branch=self.config.branch)
         return self.repo.skill_dir("")
 
+    # ── Management mode ───────────────────────────────────────────────────────
+
     def publish(self, **kwargs) -> Skill:
-        """
-        Management Mode API: Deploys a new version.
-        Arguments like 'branch' are optional as the manager uses defaults.
-        """
         self._ensure_repo()
         return self.publisher.publish(**kwargs)
 
     def publish_zip(self, **kwargs) -> Skill:
-        """
-        Management Mode API: Deploys a new version from a zip file.
-        Ensures the repository is initialized before publishing.
-        """
         self._ensure_repo()
         return self.publisher.publish_zip(**kwargs)
 
     def rollback(self, **kwargs) -> Skill:
-        """Management Mode API: Reverts to a previous version."""
         self._ensure_repo()
         return self.publisher.rollback(**kwargs)
 
+    # ── Queries ───────────────────────────────────────────────────────────────
+
     def get_history(self, code: str) -> List[SkillVersion]:
-        """Retrieves release history from the connected database."""
         if not self.storage:
             raise GitSkillError("Storage adapter is required for history queries.")
         return self.storage.get_history(code)
 
     def get_interim_path(self, uid: Any) -> str:
-        """Resolves the standardized interim upload path for a user via SDK path_provider."""
+        """Return the per-user interim upload directory."""
         sdk = get_sdk()
         if sdk.path_provider:
             return sdk.path_provider.get_update_dir(uid)
-        from src.harness.config.path import AppPaths
-        return str(AppPaths.SKILLS_UPDATE / str(uid))
+        raise GitSkillError("SDK path_provider not initialised — call init_sdk() first.")

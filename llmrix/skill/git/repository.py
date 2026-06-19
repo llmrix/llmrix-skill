@@ -60,14 +60,21 @@ class GitRepository:
 
     def ensure_initialized(self, remote_url: Optional[str] = None, branch: str = "main"):
         """Ensures the repository is initialized and tracking the correct branch."""
+        # Always ensure workspace root directory exists
+        os.makedirs(self.root, exist_ok=True)
+
         if not os.path.isdir(os.path.join(self.root, ".git")):
             if remote_url:
                 logger.info("Cloning skill repository from %s (branch: %s)", remote_url, branch)
-                os.makedirs(os.path.dirname(self.root), exist_ok=True)
-                self._execute(["clone", "--branch", branch, remote_url, self.root])
+                try:
+                    self._execute(["clone", "--branch", branch, remote_url, self.root])
+                except GitOperationError:
+                    # Clone failed (e.g. bad token or empty repo), init locally
+                    logger.warning("Git clone failed, initializing local repository instead")
+                    self._execute(["init", "-b", branch])
+                    self._execute(["remote", "add", "origin", remote_url])
             else:
                 logger.info("Initializing local skill repository (branch: %s)", branch)
-                os.makedirs(self.root, exist_ok=True)
                 self._execute(["init", "-b", branch])
 
         # Ensure skills directory exists
@@ -75,11 +82,18 @@ class GitRepository:
 
     def fetch_latest(self, remote: str = "origin", branch: str = "main"):
         """Pulls the latest changes from the remote repository."""
-        self._execute(["pull", remote, branch])
+        try:
+            self._execute(["pull", remote, branch])
+        except GitOperationError:
+            # Pull may fail on a freshly-init repo with no commits; just skip
+            logger.warning("git pull %s %s failed (possibly no remote commits yet), skipping", remote, branch)
 
     def push_changes(self, remote: str = "origin", branch: str = "main"):
         """Pushes local commits to the remote repository."""
-        self._execute(["push", remote, branch])
+        try:
+            self._execute(["push", remote, branch])
+        except GitOperationError:
+            logger.warning("git push %s %s failed (possibly no remote or no commits), skipping", remote, branch)
 
     def commit_skill(self, code: str, author_id: Any, message: Optional[str] = None) -> str:
         """Adds and commits changes for a specific skill."""
