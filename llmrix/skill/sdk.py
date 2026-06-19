@@ -4,16 +4,39 @@ from typing import Optional
 
 from llmrix.skill.storage.base import BaseStorage
 
+#: 默认缓存子目录名，外部可通过 init_sdk(cache_dir_name=...) 或子类覆盖
+DEFAULT_CACHE_DIR_NAME = "cached"
+
 
 class DefaultPathProvider:
-    def __init__(self, base_dir: str):
+    """
+    SDK 默认路径提供器。
+
+    目录布局（base_dir 即 skills-remote 根目录）::
+
+        {base_dir}/
+        ├── cached/          ← Git repo 只读缓存（可通过 cache_dir_name 自定义）
+        └── update/
+            └── {user_id}/   ← 每用户工作目录
+
+    Parameters
+    ----------
+    base_dir:
+        远程 skill 根目录，通常为 ``~/.llmrix/skills-remote``。
+    cache_dir_name:
+        缓存子目录名，默认 ``"cached"``。
+        外部应用可在调用 ``init_sdk()`` 时传入自定义值以适配遗留目录布局。
+    """
+
+    def __init__(self, base_dir: str, cache_dir_name: str = DEFAULT_CACHE_DIR_NAME):
         self.base_dir = os.path.abspath(os.path.expanduser(base_dir))
+        self.cache_dir_name = cache_dir_name
 
     def get_update_dir(self, user_id) -> str:
         return os.path.join(self.base_dir, "update", str(user_id))
 
     def get_cache_dir(self) -> str:
-        return os.path.join(self.base_dir, "cache")
+        return os.path.join(self.base_dir, self.cache_dir_name)
 
 
 class SkillSDK:
@@ -39,10 +62,20 @@ class SkillSDK:
         self.path_provider = provider
 
 
-def init_sdk(base_dir: str) -> SkillSDK:
-    """Initialize path provider from base_dir. Call once at application startup."""
+def init_sdk(base_dir: str, cache_dir_name: str = DEFAULT_CACHE_DIR_NAME) -> SkillSDK:
+    """
+    Initialize the SDK path provider. Call once at application startup.
+
+    Parameters
+    ----------
+    base_dir:
+        Root directory for remote skill storage (e.g. ``~/.llmrix/skills-remote``).
+    cache_dir_name:
+        Name of the cache subdirectory under *base_dir*. Defaults to ``"cached"``.
+        Pass a custom value to match legacy directory layouts (e.g. ``"cache"``).
+    """
     sdk = SkillSDK.get_instance()
-    sdk.register_path_provider(DefaultPathProvider(base_dir))
+    sdk.register_path_provider(DefaultPathProvider(base_dir, cache_dir_name=cache_dir_name))
     return sdk
 
 
